@@ -1,11 +1,8 @@
 ﻿using System.Net.Http.Json;
-using System.Reflection.Metadata;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Bankkeeper.Structures;
-using Bankkeeper.Structures.Firefly.Requests;
-using Bankkeeper.Structures.Firefly.Responses;
+using Bankkeeper.Structures.Firefly;
 using Bankkeeper.Structures.Parsers;
 using MailKit;
 using MailKit.Net.Imap;
@@ -15,94 +12,78 @@ using MimeKit;
 dotenv.net.DotEnv.Load();
 
 var token = Environment.GetEnvironmentVariable("TOKEN");
+var user = Environment.GetEnvironmentVariable("USER");
+var pass = Environment.GetEnvironmentVariable("PASS");
+var smtp = Environment.GetEnvironmentVariable("SMTP");
 
-var http = new HttpClient();
+ArgumentException.ThrowIfNullOrWhiteSpace(token);
+ArgumentException.ThrowIfNullOrWhiteSpace(user);
+ArgumentException.ThrowIfNullOrWhiteSpace(pass);
+ArgumentException.ThrowIfNullOrWhiteSpace(smtp);
+
 var client = new ImapClient();
 
-client.Connect("mail.messenger.nope.ovh");
-await client.AuthenticateAsync(Environment.GetEnvironmentVariable("USER"), Environment.GetEnvironmentVariable("PASS"));
+Console.Error.WriteLine("Beginning loop...");
 
-var inbox = client.Inbox;
-await inbox.OpenAsync(FolderAccess.ReadWrite);
-Console.WriteLine ("Total messages: {0}", inbox.Count);
-Console.WriteLine ("Unread messages: {0}", inbox.Unread);
-
-var food = "no-reply@be.xyz";
-var bike = "no-reply@be.com.vn";
-
-var unseenIds = inbox.Search(SearchQuery.NotSeen).OrderBy(r => r.Id);
-foreach (var id in unseenIds)
+while (true)
 {
-    var message = inbox.GetMessage(id);
-    var sender = ((MailboxAddress)message.From[0]).Address;
-    var subject = message.Subject;
-    var body = message.HtmlBody;
-
-    if (sender == food)
-    {
-        try
-        {
-            var parser = new FoodParser();
-            var transaction = parser.Parse(body);
-            await Handle(transaction);
-            await inbox.AddFlagsAsync(id, MessageFlags.Seen, false);
-            Console.WriteLine("Processed {0}, marked as read.", subject);
-        }
-        catch (Exception e)
-        {
-            Console.Error.WriteLine("Error processing {0}: {1}", subject, e);
-        }
-    }
-
-    if (sender == bike)
-    {
-        try
-        {
-            var parser = new BikeParser();
-            var transaction = parser.Parse(body);
-            await Handle(transaction);
-            await inbox.AddFlagsAsync(id, MessageFlags.Seen, false);
-            Console.WriteLine("Processed {0}, marked as read.", subject);
-        }
-        catch (Exception e)
-        {
-            Console.Error.WriteLine("Error processing {0}: {1}", subject, e);
-        }
-    }
+    await Work();
+    Console.Error.WriteLine("Waiting for 5 minutes...");
+    await Task.Delay(TimeSpan.FromMinutes(5));
 }
 
-async Task Handle(ITransaction transaction)
+async Task Work()
 {
-    var t = transaction.SerializeIntoTransaction();
+    client.Connect(smtp);
+    await client.AuthenticateAsync(user, pass);
+    Console.Error.WriteLine("=> Logged in!");
 
-    var json = JsonSerializer.Serialize(t, new JsonSerializerOptions
-    {
-        DictionaryKeyPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    });
-    var req = new HttpRequestMessage
-    {
-        RequestUri = new Uri("https://m.cipher.moe/api/v1/transactions"),
-        Method = HttpMethod.Post,
-        Headers =
-        {
-            { "Authorization", "Bearer " + token },
-            { "Accept", "application/json" }
-        },
-        Content = new StringContent(json, Encoding.UTF8, "application/json")
-    };
+    var inbox = client.Inbox;
+    await inbox.OpenAsync(FolderAccess.ReadWrite);
 
-    var a = await http.SendAsync(req);
-    var response = await a.Content.ReadFromJsonAsync<CreateTransactionResponse>();
+    const string food = "no-reply@be.xyz", bike = "no-reply@be.com.vn";
 
-    if (response!.Data?.Id != null)
+    var unseenIds = inbox.Search(SearchQuery.NotSeen).OrderBy(r => r.Id).ToList();
+
+    if (unseenIds.Count == 0)
     {
-        Console.WriteLine("Created transaction ID {0}, description \"{1}\"", response.Data.Id, transaction.Description);
+        Console.Error.WriteLine("=> No new messages!");
     }
     else
     {
-        throw new Exception($"Error posting {transaction.Description}: {response.Message}");
+        Console.Error.WriteLine("=> Not seen messages: {0}", unseenIds.Count);
     }
-}
+    
+    var messages = await Task.WhenAll(unseenIds.Select(async r =>
+    {
+        var res = await inbox.GetMessageAsync(r);
+        return (r, res);
+    }));
+    Console.Error.WriteLine("=> Downloaded {0} messages", messages.Length);
 
-await client.DisconnectAsync(true);
+    foreach (var (id, message) in messages)
+    {
+        var sender = ((MailboxAddress)message.From[0]).Address;
+        var subject = message.Subject;
+        var body = message.HtmlBody;
+
+        if (sender is food or bike)
+        {
+            try
+            {
+                var transaction = sender == food ? new FoodParser().Parse(body) : new BikeParser().Parse(body);
+                var c = new TransactionClient(token!);
+                await c.Handle(transaction);
+                await inbox.AddFlagsAsync(id, MessageFlags.Seen, false);
+                Console.WriteLine("=> Processed {0}, marked as read.", message.MessageId);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine("=> Error processing {0}: {1}", message.MessageId, e);
+            }
+        }
+    }
+
+    await client.DisconnectAsync(true);
+    Console.Error.WriteLine("=> Logged out!");
+}

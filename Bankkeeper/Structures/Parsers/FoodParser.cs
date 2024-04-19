@@ -1,6 +1,5 @@
-using Bankkeeper.Structures;
+using Bankkeeper.Structures.Transactions;
 using HtmlAgilityPack;
-using HtmlAgilityPack.CssSelectors.NetCore;
 
 namespace Bankkeeper.Structures.Parsers
 {

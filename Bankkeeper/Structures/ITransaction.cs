@@ -1,3 +1,5 @@
+using Bankkeeper.Structures.Firefly.Requests;
+
 namespace Bankkeeper.Structures
 {
     public interface ITransaction
@@ -6,7 +8,7 @@ namespace Bankkeeper.Structures
         public int Cost { get; }
         public string Description { get; }
         public DateTimeOffset Timestamp { get; }
-        
-        public byte[] Attachment { get;  }
+
+        public Transaction SerializeIntoTransaction();
     }
 }

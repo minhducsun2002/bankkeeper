@@ -1,7 +1,9 @@
 ﻿using System.Net.Http.Json;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bankkeeper.Structures;
 using Bankkeeper.Structures.Firefly.Requests;
 using Bankkeeper.Structures.Firefly.Responses;
 using Bankkeeper.Structures.Parsers;
@@ -33,37 +35,45 @@ foreach (var id in unseenIds)
 {
     var message = inbox.GetMessage(id);
     var sender = ((MailboxAddress)message.From[0]).Address;
+    var subject = message.Subject;
     var body = message.HtmlBody;
 
     if (sender == food)
     {
-        await HandleFood(body);
-        await inbox.AddFlagsAsync(id, MessageFlags.Seen, false);
-        Console.WriteLine("Marked message as read.");
+        try
+        {
+            var parser = new FoodParser();
+            var transaction = parser.Parse(body);
+            await Handle(transaction);
+            await inbox.AddFlagsAsync(id, MessageFlags.Seen, false);
+            Console.WriteLine("Processed {0}, marked as read.", subject);
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine("Error processing {0}: {1}", subject, e);
+        }
+    }
+
+    if (sender == bike)
+    {
+        try
+        {
+            var parser = new BikeParser();
+            var transaction = parser.Parse(body);
+            await Handle(transaction);
+            await inbox.AddFlagsAsync(id, MessageFlags.Seen, false);
+            Console.WriteLine("Processed {0}, marked as read.", subject);
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine("Error processing {0}: {1}", subject, e);
+        }
     }
 }
 
-async Task HandleFood(string body)
+async Task Handle(ITransaction transaction)
 {
-    var parser = new FoodParser();
-    var transaction = parser.Parse(body);
-
-    var t = new Transaction
-    {
-        Splits =
-        [
-            new TransactionSplit
-            {
-                Type = "withdrawal",
-                Date = transaction.Timestamp,
-                Amount = transaction.Cost,
-                Description = transaction.Description,
-                Notes = transaction.Notes,
-                SourceName = "Be-Cake credit card",
-                DestinationName = "eat rich"
-            }
-        ]
-    };
+    var t = transaction.SerializeIntoTransaction();
 
     var json = JsonSerializer.Serialize(t, new JsonSerializerOptions
     {
@@ -88,11 +98,10 @@ async Task HandleFood(string body)
     if (response!.Data?.Id != null)
     {
         Console.WriteLine("Created transaction ID {0}, description \"{1}\"", response.Data.Id, transaction.Description);
-        
     }
     else
     {
-        Console.Error.WriteLine("Error creating beFood order \"{0}\": {1}", transaction.Description, response.Message);
+        throw new Exception($"Error posting {transaction.Description}: {response.Message}");
     }
 }
 

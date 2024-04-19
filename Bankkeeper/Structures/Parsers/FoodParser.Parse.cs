@@ -36,7 +36,6 @@ namespace Bankkeeper.Structures.Parsers
         private DateTimeOffset ParseTime(HtmlDocument doc)
         {
             const string dateSelector = "td[align=\"right\"]";
-            const string timeSelector = "table";
             
             var date = doc.QuerySelector(dateSelector);
             var datePiece = date.InnerText.Split(',').Last().Trim().Split('/');

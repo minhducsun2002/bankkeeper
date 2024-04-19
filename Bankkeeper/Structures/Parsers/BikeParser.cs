@@ -25,7 +25,7 @@ namespace Bankkeeper.Structures.Parsers
 
             
             var desc = $"Trip to {a2}";
-            var home = Environment.GetEnvironmentVariable("HOME");
+            var home = Environment.GetEnvironmentVariable("HOME_ADDRESS");
             if (!string.IsNullOrWhiteSpace(home) && a2.Contains(home))
             {
                 desc = "đi xe về nhà";

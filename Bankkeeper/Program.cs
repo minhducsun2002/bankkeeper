@@ -27,7 +27,14 @@ Console.Error.WriteLine("Beginning loop...");
 
 while (true)
 {
-    await Work();
+    try
+    {
+        await Work();
+    }
+    catch (Exception e)
+    {
+        Console.Error.WriteLine(e);
+    }
     Console.Error.WriteLine("Waiting for 5 minutes...");
     await Task.Delay(TimeSpan.FromMinutes(5));
 }
@@ -64,7 +71,6 @@ async Task Work()
     foreach (var (id, message) in messages)
     {
         var sender = ((MailboxAddress)message.From[0]).Address;
-        var subject = message.Subject;
         var body = message.HtmlBody;
 
         if (sender is food or bike)

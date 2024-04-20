@@ -10,6 +10,11 @@ namespace Bankkeeper.Structures.Transactions
         public DateTimeOffset Timestamp { get; init; }
         public Transaction SerializeIntoTransaction()
         {
+            var src = Environment.GetEnvironmentVariable("BIKE_SRC_ACCOUNT");
+            var dst = Environment.GetEnvironmentVariable("BIKE_DST_ACCOUNT");
+            ArgumentException.ThrowIfNullOrWhiteSpace(src);
+            ArgumentException.ThrowIfNullOrWhiteSpace(dst);
+            
             var t = new Transaction
             {
                 Splits =
@@ -21,8 +26,8 @@ namespace Bankkeeper.Structures.Transactions
                         Amount = Cost,
                         Description = Description,
                         Notes = Notes,
-                        SourceName = "Be-Cake credit card",
-                        DestinationName = "Transportation"
+                        SourceName = src,
+                        DestinationName = dst
                     }
                 ]
             };

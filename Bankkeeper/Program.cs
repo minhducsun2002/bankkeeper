@@ -60,13 +60,15 @@ async Task Work()
     {
         Console.Error.WriteLine("=> Not seen messages: {0}", unseenIds.Count);
     }
-    
-    var messages = await Task.WhenAll(unseenIds.Select(async r =>
+
+    var messages = new List<(UniqueId, MimeMessage)>();
+
+    foreach (var r in unseenIds)
     {
         var res = await inbox.GetMessageAsync(r);
-        return (r, res);
-    }));
-    Console.Error.WriteLine("=> Downloaded {0} messages", messages.Length);
+        messages.Add((r, res));
+    }
+    Console.Error.WriteLine("=> Downloaded {0} messages", messages.Count);
 
     foreach (var (id, message) in messages)
     {

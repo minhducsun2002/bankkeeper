@@ -13,7 +13,7 @@ namespace Bankkeeper.Structures.Parsers
             try
             {
                 var costTable = doc.QuerySelectorAll(tableStyle)[14];
-                var totalCell = costTable!.QuerySelectorAll("tr")[7].GetChildElements().Last();
+                var totalCell = costTable!.QuerySelectorAll("tr").Last().GetChildElements().Last();
                 var text = string.Concat(totalCell.InnerText.Trim().Where(char.IsDigit));
 
                 return int.Parse(text);

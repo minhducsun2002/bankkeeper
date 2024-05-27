@@ -31,6 +31,12 @@ namespace Bankkeeper.Structures.Parsers
                 desc = "đi xe về nhà";
             }
             
+            var work = Environment.GetEnvironmentVariable("WORK_ADDRESS");
+            if (!string.IsNullOrWhiteSpace(work) && a2.Contains(work))
+            {
+                desc = "đi làm";
+            }
+            
             var res = new Bike
             {
                 Description = desc,

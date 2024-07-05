@@ -9,6 +9,8 @@ using MailKit.Net.Imap;
 using MailKit.Search;
 using MimeKit;
 
+string[] advertisementsPrefix = ["[AD]", "[QC]"];
+
 dotenv.net.DotEnv.Load();
 
 var token = Environment.GetEnvironmentVariable("TOKEN");
@@ -74,6 +76,14 @@ async Task Work()
     {
         var sender = ((MailboxAddress)message.From[0]).Address;
         var body = message.HtmlBody;
+
+        if (advertisementsPrefix.Any(s => message.Subject.StartsWith(s)))
+        {
+            // skip advertisements
+            await inbox.AddFlagsAsync(id, MessageFlags.Seen, false);
+            Console.WriteLine("   Ignoring {0} as advertisements. Marking as read.", message.MessageId);
+            continue;
+        }
 
         if (sender is food or bike)
         {

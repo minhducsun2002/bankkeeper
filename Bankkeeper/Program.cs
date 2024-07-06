@@ -76,8 +76,9 @@ async Task Work()
     {
         var sender = ((MailboxAddress)message.From[0]).Address;
         var body = message.HtmlBody;
+        var subject = message.Subject;
 
-        if (advertisementsPrefix.Any(s => message.Subject.StartsWith(s)))
+        if (advertisementsPrefix.Any(s => subject.StartsWith(s)))
         {
             // skip advertisements
             await inbox.AddFlagsAsync(id, MessageFlags.Seen, false);
@@ -89,8 +90,10 @@ async Task Work()
         {
             try
             {
-                var transaction = sender == food ? new FoodParser().Parse(body) : new BikeParser().Parse(body);
-                var c = new TransactionClient(token!);
+                var transaction = sender == food
+                    ? new FoodParser().Parse(body) 
+                    : (subject.Contains("ride details") ? new BikeParser().Parse(body) : new VoucherParser().Parse(body));
+                var c = new TransactionClient(token);
                 await c.Handle(transaction);
                 await inbox.AddFlagsAsync(id, MessageFlags.Seen, false);
                 Console.WriteLine("=> Processed {0}, marked as read.", message.MessageId);

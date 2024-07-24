@@ -29,26 +29,37 @@ namespace Bankkeeper.Structures.Parsers
             }).ToDictionary();
 
             var price = int.Parse(string.Join("", keys["Price"].Where(char.IsDigit)));
-            var time = DateTimeOffset.Parse(keys["Date purchase"], CultureInfo.InvariantCulture);
-            var finalTime = new DateTimeOffset(
-                time.Year,
-                time.Day,
-                time.Month,
-                time.Hour,
-                time.Minute,
-                time.Second,
-                TimeSpan.FromHours(7)
-            );
+            var time = ParseTime(keys["Date purchase"].Trim());
             
             var res = new Voucher
             {
                 Description = "be voucher",
                 Cost = price,
-                Timestamp = finalTime,
+                Timestamp = time,
                 Notes = keys.GetValueOrDefault("Subscription", "")
             };
 
             return res;
+        }
+        
+        private DateTimeOffset ParseTime(string s)
+        {
+            s = s.Replace(".", "");
+            var r = s.Split(' ');
+            var time = r[1].Trim().Split(':');
+            var date = r[0].Trim().Split('-');
+
+            var final = new DateTimeOffset(
+                int.Parse(date[2]),
+                int.Parse(date[1]),
+                int.Parse(date[0]),
+                int.Parse(time[0]),
+                int.Parse(time[1]),
+                0,
+                TimeSpan.FromHours(7)
+            );
+
+            return final;
         }
     }
 }

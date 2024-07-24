@@ -90,9 +90,48 @@ async Task Work()
         {
             try
             {
-                var transaction = sender == food
-                    ? new FoodParser().Parse(body) 
-                    : (subject.Contains("ride details") ? new BikeParser().Parse(body) : new VoucherParser().Parse(body));
+                ITransaction? transaction = null;
+                if (sender == food)
+                {
+                    transaction = new FoodParser().Parse(body);
+                }
+                else
+                {
+                    if (subject.Contains("ride details"))
+                    {
+                        transaction = new BikeParser().Parse(body);
+                    }
+
+                    if (body.Contains("your Subscription"))
+                    {
+                        transaction = new VoucherParser().Parse(body);
+                    }
+
+                    if (body.Contains("nạp điện thoại"))
+                    {
+                        // we need an attachment
+                        var attachment = message.Attachments.Where(
+                            a => a is TextPart p 
+                                 && p.ContentDisposition?.FileName.ToLowerInvariant().EndsWith(".html") == true
+                                 && p.ContentType.MimeType == "text/html"
+                        );
+                        var receipt = attachment.FirstOrDefault();
+                        if (receipt == null)
+                        {
+                            throw new Exception("Mobile bill has no attachment!");
+                        }
+
+                        var a = (TextPart)receipt;
+                        body = a.Text;
+                        
+                        transaction = new MobileParser().Parse(body);
+                    }
+                    
+                    if (transaction == null)
+                    {
+                        throw new Exception("No parser configured to handle this body!");
+                    }
+                }
                 var c = new TransactionClient(token);
                 await c.Handle(transaction);
                 await inbox.AddFlagsAsync(id, MessageFlags.Seen, false);

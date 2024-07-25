@@ -1,4 +1,5 @@
 using System.Text;
+using System.Web;
 using Bankkeeper.Structures.Transactions;
 using HtmlAgilityPack;
 using HtmlAgilityPack.CssSelectors.NetCore;
@@ -44,7 +45,7 @@ namespace Bankkeeper.Structures.Parsers
             
 
             var costNode = doc.QuerySelectorAll("table[cellpadding=\"5\"] td[align=\"right\"]")[5];
-            var costText = costNode.InnerText.Trim();
+            var costText = HttpUtility.HtmlDecode(costNode.InnerText.Trim());
             var cost = int.Parse(string.Join("", costText.Where(char.IsDigit)));
             
             var res = new Delivery

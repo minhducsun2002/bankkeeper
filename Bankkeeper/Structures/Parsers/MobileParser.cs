@@ -1,17 +1,31 @@
-using System.Diagnostics;
-using System.Text.RegularExpressions;
 using Bankkeeper.Structures.Transactions;
 using HtmlAgilityPack;
 using HtmlAgilityPack.CssSelectors.NetCore;
+using MimeKit;
 
 namespace Bankkeeper.Structures.Parsers
 {
     public class MobileParser
     {
-        public ITransaction Parse(string receipt)
+        public ITransaction Parse(MimeMessage message)
         {
+            // we need an attachment
+            var attachment = message.Attachments.Where(
+                a => a is TextPart p 
+                     && p.ContentDisposition?.FileName.ToLowerInvariant().EndsWith(".html") == true
+                     && p.ContentType.MimeType == "text/html"
+            );
+            var receipt = attachment.FirstOrDefault();
+            if (receipt == null)
+            {
+                throw new Exception("Mobile bill has no attachment!");
+            }
+
+            var a = (TextPart)receipt;
+            var body = a.Text;
+            
             var doc = new HtmlDocument();
-            doc.LoadHtml(receipt);
+            doc.LoadHtml(body);
 
             var tables = doc.QuerySelectorAll("table").ToList();
             var table = tables.Last();

@@ -109,22 +109,12 @@ async Task Work()
 
                     if (body.Contains("nạp điện thoại"))
                     {
-                        // we need an attachment
-                        var attachment = message.Attachments.Where(
-                            a => a is TextPart p 
-                                 && p.ContentDisposition?.FileName.ToLowerInvariant().EndsWith(".html") == true
-                                 && p.ContentType.MimeType == "text/html"
-                        );
-                        var receipt = attachment.FirstOrDefault();
-                        if (receipt == null)
-                        {
-                            throw new Exception("Mobile bill has no attachment!");
-                        }
+                        transaction = new MobileParser().Parse(message);
+                    }
 
-                        var a = (TextPart)receipt;
-                        body = a.Text;
-                        
-                        transaction = new MobileParser().Parse(body);
+                    if (body.Contains("beDelivery"))
+                    {
+                        transaction = new DeliveryParser().Parse(body);
                     }
                     
                     if (transaction == null)

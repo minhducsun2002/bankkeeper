@@ -44,9 +44,14 @@ namespace Bankkeeper.Structures.Parsers
             }).ToList();
             
 
-            var costNode = doc.QuerySelectorAll("table[cellpadding=\"5\"] td[align=\"right\"]")[5];
+            var costNode = doc.QuerySelectorAll("table[cellpadding=\"5\"] td[align=\"right\"]").Last();
             var costText = HttpUtility.HtmlDecode(costNode.InnerText.Trim());
             var cost = int.Parse(string.Join("", costText.Where(char.IsDigit)));
+
+            if (cost % 1000 != 0)
+            {
+                throw new Exception("Parsing failed: potentially wrong cost " + cost);
+            }
             
             var res = new Delivery
             {
